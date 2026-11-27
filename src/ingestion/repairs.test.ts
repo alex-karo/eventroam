@@ -912,6 +912,70 @@ it.each([
   },
 );
 
+const wineClassificationPath = "currentOrNextEdition.fields.classification";
+const wineReturnNote =
+  "Remove the unsupported festival type. Keep the wine topic supported by the tastings.";
+
+function wineProviderReplies({
+  wine,
+  foodSlug,
+  proposedFestival,
+}: {
+  wine: { id: string; slug: string };
+  foodSlug: string;
+  proposedFestival?: { id: string; slug: string };
+}): Handler {
+  const firstTerms = proposedFestival
+    ? [proposedFestival.id, wine.id]
+    : [wine.id];
+  const returns: ReviewDecision[] = proposedFestival
+    ? [
+        {
+          path: wineClassificationPath,
+          decision: "return",
+          note: wineReturnNote,
+        },
+      ]
+    : [];
+  let eventType = proposedFestival?.slug;
+
+  return (body, _index, prompt) => {
+    if (providerRole(body) === "classification") {
+      const classification = set({
+        ...(eventType && { eventType }),
+        topics: [wine.slug, foodSlug],
+      });
+      eventType = undefined;
+      return reply(body, {
+        previousEdition: null,
+        currentOrNextEdition: { classification },
+        checks: fixtureChecks(["description", "currentClassification"]),
+        unresolved: [],
+      });
+    }
+
+    const instructions = JSON.stringify(
+      body.messages.find(({ role }) => role === "system")?.content,
+    );
+    expect(instructions).toContain(
+      "name the specific unsupported term in the return note",
+    );
+    expect(instructions).toContain(
+      "Accept a supported topic/wine without topic/food-and-drink",
+    );
+    if (prompt.returnedGroups) {
+      expect(prompt.returnedGroups).toMatchObject([
+        { path: wineClassificationPath, proposal: { value: [wine.id] } },
+      ]);
+      return reply(body, review(prompt));
+    }
+    expect(
+      prompt.prepared.plan.currentOrNextEdition.fields.classification.value,
+    ).toEqual(firstTerms);
+    return reply(body, review(prompt, ...returns));
+  };
+}
+
 it.each([
   {
     name: "Foire aux Vins de France (Sancerre)",
@@ -959,60 +1023,28 @@ it.each([
     countryCode: "FR",
   });
 
-  const path = "currentOrNextEdition.fields.classification";
-  const note =
-    "Remove the unsupported festival type. Keep the wine topic supported by the tastings.";
-  let classificationCalls = 0;
   const { run, requests } = f.model(
     ["classification", "editor"],
-    (body, _index, prompt) => {
-      if (providerRole(body) === "classification") {
-        const initial = classificationCalls++ === 0;
-        return reply(body, {
-          previousEdition: null,
-          currentOrNextEdition: {
-            classification: set({
-              ...(initial && disputedType && { eventType: festival.slug }),
-              topics: [wine.slug, food.slug],
-            }),
-          },
-          checks: fixtureChecks(["description", "currentClassification"]),
-          unresolved: [],
-        });
-      }
-
-      const instructions = JSON.stringify(
-        body.messages.find(({ role }) => role === "system")?.content,
-      );
-      expect(instructions).toContain(
-        "name the specific unsupported term in the return note",
-      );
-      expect(instructions).toContain(
-        "Accept a supported topic/wine without topic/food-and-drink",
-      );
-      if (prompt.returnedGroups) {
-        expect(prompt.returnedGroups).toMatchObject([
-          { path, proposal: { value: [wine.id] } },
-        ]);
-        return reply(body, review(prompt));
-      }
-      expect(
-        prompt.prepared.plan.currentOrNextEdition.fields.classification.value,
-      ).toEqual(disputedType ? [festival.id, wine.id] : [wine.id]);
-      return reply(
-        body,
-        disputedType
-          ? review(prompt, { path, decision: "return", note })
-          : review(prompt),
-      );
-    },
+    wineProviderReplies({
+      wine,
+      foodSlug: food.slug,
+      proposedFestival: disputedType ? festival : undefined,
+    }),
     { general },
   );
 
   const result = await run({ todayUtc: startsOn });
   expect(result.errors).toEqual([]);
   expect(result.repairs ?? []).toMatchObject(
-    disputedType ? [{ path, note, decision: { decision: "approve" } }] : [],
+    disputedType
+      ? [
+          {
+            path: wineClassificationPath,
+            note: wineReturnNote,
+            decision: { decision: "approve" },
+          },
+        ]
+      : [],
   );
   expect(requests).toHaveLength(disputedType ? 4 : 2);
   expect(f.saved().editions[0]).toMatchObject({

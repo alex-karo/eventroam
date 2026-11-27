@@ -1,6 +1,9 @@
-import { check } from "../../checks";
+import { check, contains } from "../../checks";
 import { researchDidNotFail } from "../../research";
-import type { RegressionCaseDefinition } from "../../regression";
+import type {
+  RegressionCaseDefinition,
+  RegressionContext,
+} from "../../regression";
 import { sourceReplay } from "../fixture";
 import { candidate, forward } from "../geocoding";
 
@@ -9,6 +12,85 @@ const website = "https://fete-des-vinsdebandol.fr/";
 const officialPage = "https://www.fete-des-vinsdebandol.fr/";
 const geocodingProvenance =
   "Normalized Geoapify replies captured in the production Location trace on 2026-11-26.";
+
+function checkEdition(report: RegressionContext["report"], eventRef: string) {
+  const editions = report.operations.filter(
+    (op) => op.kind === "createEdition",
+  );
+  const [edition] = editions;
+  const editionKey = edition?.tempKey ?? "";
+  const editionRef = `$${editionKey}`;
+  const editionId = report.references[editionKey];
+  const terms = report.operations
+    .filter((op) => op.kind === "replaceTerms")
+    .find((op) => op.id === editionRef);
+  const termIds = terms?.termIds ?? [];
+  const publishIndex = report.operations.findIndex(
+    (op) => op.kind === "publishEdition" && op.id === editionRef,
+  );
+
+  return [
+    check(
+      "catalog.edition.identity",
+      editions.length === 1 &&
+        !!editionId &&
+        contains(edition, { eventId: eventRef, data: { editionYear: 2026 } }),
+    ),
+    check(
+      "catalog.edition.dates",
+      contains(edition?.data, {
+        startsOn: "2026-12-05",
+        endsOn: "2026-12-06",
+        dateState: "confirmed",
+      }),
+    ),
+    check("catalog.edition.country", edition?.data.countryCode === "FR"),
+    check("catalog.edition.festival", termIds.includes("validation:festival")),
+    check("catalog.edition.wine", termIds.includes("catalog:term:topic:wine")),
+    check(
+      "catalog.edition.noFoodAndDrink",
+      !termIds.includes("validation:topic:food-and-drink"),
+      "The wine programme and food vendors do not establish a separate culinary programme",
+    ),
+    check(
+      "catalog.edition.published",
+      report.outcome === "published" &&
+        contains(report.receipts[publishIndex], {
+          id: editionId,
+          changed: true,
+        }),
+    ),
+  ];
+}
+
+function evaluateBandol({ item, report }: RegressionContext) {
+  const events = report.operations.filter((op) => op.kind === "createEvent");
+  const [event] = events;
+  const eventKey = event?.tempKey ?? "";
+  const eventId = report.references[eventKey];
+
+  return [
+    ...researchDidNotFail(report),
+    check("research.editor", report.editorStatus === "success"),
+    check(
+      "sources.officialPage",
+      contains(report.sources, { finalUrl: officialPage, outcome: "ok" }),
+    ),
+    check("catalog.add", report.mode === "add"),
+    check(
+      "catalog.event.identity",
+      events.length === 1 &&
+        !!eventId &&
+        report.eventId === eventId &&
+        eventId !== item.initial.event.id,
+    ),
+    check(
+      "catalog.event.name",
+      /^(la )?fête des vins de bandol$/iu.test(event?.data.canonicalName ?? ""),
+    ),
+    ...checkEdition(report, `$${eventKey}`),
+  ];
+}
 
 export const bandolAddCase = {
   fixture: {
@@ -88,80 +170,5 @@ export const bandolAddCase = {
     },
   },
   moduleUrl: import.meta.url,
-  evaluate: ({ item, report }) => {
-    const events = report.operations.filter((op) => op.kind === "createEvent");
-    const editions = report.operations.filter(
-      (op) => op.kind === "createEdition",
-    );
-    const [event] = events;
-    const [edition] = editions;
-    const eventId = event?.tempKey && report.references[event.tempKey];
-    const editionId = edition?.tempKey && report.references[edition.tempKey];
-    const editionRef = edition?.tempKey && `$${edition.tempKey}`;
-    const terms = report.operations.find(
-      (op) => op.kind === "replaceTerms" && op.id === editionRef,
-    );
-    const termIds = terms?.kind === "replaceTerms" ? terms.termIds : [];
-
-    return [
-      ...researchDidNotFail(report),
-      check("research.editor", report.editorStatus === "success"),
-      check(
-        "sources.officialPage",
-        report.sources.some(
-          (source) =>
-            source.finalUrl === officialPage && source.outcome === "ok",
-        ),
-      ),
-      check(
-        "catalog.event.identity",
-        events.length === 1 &&
-          !!eventId &&
-          report.eventId === eventId &&
-          eventId !== item.initial.event.id &&
-          /^(la )?fête des vins de bandol$/iu.test(event.data.canonicalName),
-      ),
-      check(
-        "catalog.edition.identity",
-        editions.length === 1 &&
-          !!event?.tempKey &&
-          !!editionId &&
-          edition.eventId === `$${event.tempKey}` &&
-          edition.data.editionYear === 2026,
-      ),
-      check(
-        "catalog.edition.dates",
-        edition?.data.startsOn === "2026-12-05" &&
-          edition.data.endsOn === "2026-12-06" &&
-          edition.data.dateState === "confirmed",
-      ),
-      check("catalog.edition.country", edition?.data.countryCode === "FR"),
-      check(
-        "catalog.edition.festival",
-        termIds.includes("validation:festival"),
-      ),
-      check(
-        "catalog.edition.wine",
-        termIds.includes("catalog:term:topic:wine"),
-      ),
-      check(
-        "catalog.edition.noFoodAndDrink",
-        !termIds.includes("validation:topic:food-and-drink"),
-        "The wine programme and food vendors do not establish a separate culinary programme",
-      ),
-      check(
-        "catalog.edition.published",
-        report.mode === "add" &&
-          report.outcome === "published" &&
-          !!editionId &&
-          report.operations.some(
-            (op, index) =>
-              op.kind === "publishEdition" &&
-              op.id === editionRef &&
-              report.receipts[index]?.id === editionId &&
-              report.receipts[index]?.changed,
-          ),
-      ),
-    ];
-  },
+  evaluate: evaluateBandol,
 } satisfies RegressionCaseDefinition;
