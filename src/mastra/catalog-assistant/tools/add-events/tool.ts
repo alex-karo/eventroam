@@ -22,8 +22,7 @@ export function createAddEventsTool(
         "add_events",
         context,
         { inputCount: input.inputs.length },
-        (client, consume) =>
-          submitAddJobs(client, { inputs: input.inputs }, consume),
+        (client, consume) => submitAddJobs(client, input, consume),
       ),
   });
 }

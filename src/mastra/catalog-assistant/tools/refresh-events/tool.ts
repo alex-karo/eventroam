@@ -22,12 +22,7 @@ export function createRefreshEventsTool(
         "refresh_events",
         context,
         { eventIds: input.eventIds, scope: input.scope },
-        (client, consume) =>
-          submitJobs(
-            client,
-            { eventIds: input.eventIds, scope: input.scope },
-            consume,
-          ),
+        (client, consume) => submitJobs(client, input, consume),
       ),
   });
 }
