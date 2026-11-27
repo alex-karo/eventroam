@@ -176,7 +176,6 @@ ${descriptionScopeRule}
 - Accept a supported topic/wine without topic/food-and-drink.
   Normalization removes an ancestor when its descendant is selected.
   Do not request a removed ancestor, including when both the wine and culinary programmes are substantial.
-  Check that separate culinary programme in the full description.
 
 ${classificationRules}
 

@@ -50,7 +50,7 @@ function checkEdition(report: RegressionContext["report"], eventRef: string) {
     check(
       "catalog.edition.noFoodAndDrink",
       !termIds.includes("validation:topic:food-and-drink"),
-      "The wine programme and food vendors do not establish a separate culinary programme",
+      "The normalized selection keeps wine and omits its food-and-drink ancestor.",
     ),
     check(
       "catalog.edition.published",
