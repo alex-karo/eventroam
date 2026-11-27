@@ -251,6 +251,7 @@ async function executeClassificationCase(
         item,
         classification,
         context.terms,
+        corpus.evidence,
       );
       return {
         classification,

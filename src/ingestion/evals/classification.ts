@@ -1,5 +1,9 @@
 import { normalizeProposedAssignments } from "@/catalog/domain/classification";
-import { bindEvidence, type FrozenCorpus } from "../evidence/contracts";
+import {
+  bindEvidence,
+  type Evidence,
+  type FrozenCorpus,
+} from "../evidence/contracts";
 import type { ResearchContext } from "../research/context";
 import type { Targets } from "../roles/general/contracts";
 import type { ClassificationOutput } from "../roles/classification/contracts";
@@ -12,6 +16,7 @@ import {
 } from "./description-format";
 import type { EvalSuite } from "./fixtures";
 import { drinkClassificationCases } from "./cases/drink-topics";
+import { checkEvidence } from "./reader/checks";
 
 export function classificationCases(suite: EvalSuite) {
   const parent = suite.cases.find(
@@ -201,11 +206,14 @@ export async function scoreClassification(
   item: ClassificationEvalCase,
   execution: RoleExecution<ClassificationOutput>,
   terms: ResearchContext["terms"],
+  evidence: Evidence[],
 ) {
   const { output } = execution;
+  const fixture = item.classification;
+  const proposal = output?.currentOrNextEdition?.classification;
   const classification = checkClassificationTerms(
-    item.classification,
-    output?.currentOrNextEdition?.classification?.value,
+    fixture,
+    proposal?.value,
     terms,
   );
   const { description, shortDescription } = output ?? {};
@@ -218,6 +226,24 @@ export async function scoreClassification(
     item,
     texts,
   );
+  const citationRequirement =
+    "citationRequirement" in fixture ? fixture.citationRequirement : undefined;
+  if (
+    citationRequirement &&
+    proposal?.value.includes(citationRequirement.termId)
+  ) {
+    const cited = evidence.filter(({ id }) =>
+      proposal.evidenceIds.includes(id),
+    );
+    const citationChecks = checkEvidence(citationRequirement.evidence, cited);
+    checks.push(
+      check(
+        `${classification.path}.evidence`,
+        citationChecks.every(({ passed }) => passed),
+        `Cite the ${citationRequirement.evidence.map(({ name }) => name).join(" and ")} when proposing ${citationRequirement.termId}.`,
+      ),
+    );
+  }
   return {
     descriptionFormat,
     score: scenarioResult([

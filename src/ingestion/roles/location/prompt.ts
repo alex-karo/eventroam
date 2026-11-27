@@ -1,6 +1,6 @@
 import { returnInstructions } from "../prompts";
 
-export const LOCATION_PROMPT_VERSION = "catalog-location-v36";
+export const LOCATION_PROMPT_VERSION = "catalog-location-v40";
 
 export const locationInstructions = `## Scope and text fields
 
@@ -62,8 +62,10 @@ export const locationInstructions = `## Scope and text fields
 ## Find a map point
 
 - Follow the official and saved point rules below. A confirmed move makes the old venue point inapplicable.
-- On the first reply, use forward geocode if the source confirms a venue or town, no usable point is available, and calls remain. An empty list of prepared results means you still need to search.
-- If one venue represents the Edition, query the venue with its town and country first.
+- Check registered source points even when the prepared results are empty.
+- Select a usable official venue point without forward geocoding for that Edition. If it differs materially from a saved point and the reason is unknown, record the difference in unresolved.
+- When the source confirms a venue or town and no usable point is available, use forward geocode on the first reply if calls remain.
+- If a search is needed and one venue represents the Edition, query the venue with its town and country first.
 - Before falling back to a town point, check the saved target point and the historical previousPoint for a usable venue point. If neither applies and no usable venue candidate exists, use a matching town result with objectType locality, even if it came from a venue query. If you have no such result, query the confirmed town without a venue name. Include the administrative area and country when known.
 - Save one call for a pending town lookup before you spend calls on more venue queries. Before returning keep or clear with no coordinates, make the required lookup if calls remain and you have not tried it yet.
 - If the first town lookup returns no usable result with objectType locality and calls remain, retry once with a different spelling of the same town when available. Use a spelling from source evidence or the locality field of a geocoder result for the same town. Changing only the area or country does not change the spelling.
@@ -71,7 +73,7 @@ export const locationInstructions = `## Scope and text fields
 - If you know only the country or region, leave coordinates empty unless you already have a supported point for the Edition.
 - Use place names from the evidence or an alternate town spelling as described above. If a query with a translated administrative area fails, try the venue or town with the country alone.
 - Do not repeat an equivalent prepared or completed query. Never use old coordinates as search bias.
-- Forward geocode is the only tool on the first reply. Six calls per Event cover preparation and tool calls, including cache hits. Use at most eight model steps.
+- Six calls per Event cover preparation and tool calls, including cache hits. Use at most eight model steps.
 
 ## Official venue coordinates
 

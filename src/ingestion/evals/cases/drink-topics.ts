@@ -2,6 +2,7 @@ import type { Targets } from "../../roles/general/contracts";
 import { evidenceRequirement } from "../reader/checks";
 
 const festival = "validation:festival";
+const beerTopic = "catalog:term:topic:beer";
 const wine =
   "The 2027 wine programme offers tastings led by eight regional wineries on both days.";
 const cooking =
@@ -14,6 +15,7 @@ const bar =
   "The 2027 main programme consists of jazz concerts. The venue bar sells wine and beer. A brewery sponsors the concerts and offers one sample at its stand.";
 const past =
   "In 2026, six independent breweries led a full programme of beer tastings and demonstrations.";
+const millBeerName = "Mill Beer Festival";
 
 const scenarios = [
   {
@@ -36,9 +38,7 @@ const scenarios = [
       `${indoors} Outside there are only entrances and parking.`,
     ],
     passages: [beer, indoors],
-    expectedTermSets: [
-      [festival, "catalog:term:topic:beer", "validation:indoor"],
-    ],
+    expectedTermSets: [[festival, beerTopic, "validation:indoor"]],
     descriptionReference:
       "An indoor beer festival in enclosed exhibition halls, with guided tastings from independent breweries and brewing demonstrations.",
   },
@@ -58,10 +58,17 @@ const scenarios = [
   },
   {
     id: "classification-beer-other-edition",
-    name: "Mill Beer Festival",
+    name: millBeerName,
     programme: [past],
     passages: [past],
-    expectedTermSets: [[festival], [festival, "catalog:term:topic:beer"], []],
+    expectedTermSets: [[festival], [festival, beerTopic], []],
+    citationRequirement: {
+      termId: beerTopic,
+      evidence: [
+        evidenceRequirement("official-name", "classification", millBeerName),
+        evidenceRequirement("earlier-programme", "classification", past),
+      ],
+    },
   },
 ];
 
@@ -135,6 +142,7 @@ export function drinkClassificationCases() {
           ),
         ],
         expectedTermSets: scenario.expectedTermSets,
+        citationRequirement: scenario.citationRequirement,
         descriptionReference: scenario.descriptionReference,
         culinary: scenario.culinary,
       },
