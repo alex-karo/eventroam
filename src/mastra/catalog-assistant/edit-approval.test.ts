@@ -104,7 +104,7 @@ test.each(["after", "before-and-after"])(
       }
       expect(snapshot()).toEqual({
         event: { canonical_name: "First name", audits: 1 },
-        jobs: [{ dry_run: refresh === "after" ? 0 : 1 }],
+        jobs: [{ dry_run: 0 }],
       });
     } finally {
       await studio.stop();

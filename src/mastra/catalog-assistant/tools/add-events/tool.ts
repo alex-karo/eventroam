@@ -13,16 +13,21 @@ export function createAddEventsTool(
   return createTool({
     id: "add_events",
     description:
-      "Submit one to 200 complete descriptions for background add. A complete name or alias plus a clear country code or full official URL can skip one saved Event before source reads. Other text supplies search leads; new facts need inspected sources. dryRun defaults to preview; false applies. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
-    inputSchema: addJobsInputSchema,
+      "Submit one to 200 complete descriptions for background add. A complete name or alias plus a clear country code or full official URL can skip one saved Event before source reads. Other text supplies search leads; new facts need inspected sources. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
+    inputSchema: addJobsInputSchema.omit({ dryRun: true }),
     execute: async (input, context) =>
       submitSelection(
         catalogPath,
         logging,
         "add_events",
         context,
-        { inputCount: input.inputs.length, dryRun: input.dryRun },
-        (client, consume) => submitAddJobs(client, input, consume),
+        { inputCount: input.inputs.length },
+        (client, consume) =>
+          submitAddJobs(
+            client,
+            { inputs: input.inputs, dryRun: false },
+            consume,
+          ),
       ),
   });
 }

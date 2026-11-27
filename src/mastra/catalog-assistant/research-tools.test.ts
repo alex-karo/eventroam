@@ -30,25 +30,21 @@ test("add and refresh share one selection across parallel calls; add needs host 
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const tool = createAddEventsTool(() => db.path);
   expect(
-    await tool.execute!(
-      { inputs: ["clue"], dryRun: true },
-      { observe: noopObserve },
-    ),
+    await tool.execute!({ inputs: ["clue"] }, { observe: noopObserve }),
   ).toMatchObject({ error: "host_context_required" });
   const ctx = context();
   expect(
     await tool.execute!(
-      { inputs: ["clue"], dryRun: true },
+      { inputs: ["clue"] },
       { ...ctx, abortSignal: AbortSignal.abort() },
     ),
   ).toMatchObject({ error: "cancelled" });
   const results = await Promise.all([
-    tool.execute!({ inputs: ["alpha", "beta"], dryRun: false }, ctx),
+    tool.execute!({ inputs: ["alpha", "beta"] }, ctx),
     createRefreshEventsTool(() => db.path).execute!(
       {
         eventIds: [testFixtures(db.client).event().id],
         scope: "full",
-        dryRun: true,
       },
       ctx,
     ),
@@ -173,7 +169,7 @@ test("invalid research settings affect search but leave submission, status, and 
   vi.stubGlobal("fetch", fetch);
   const ctx = context();
   const add = await createAddEventsTool(() => db.path).execute!(
-    { inputs: ["clue"], dryRun: true },
+    { inputs: ["clue"] },
     ctx,
   );
   expect(add).toMatchObject({ ok: true, acceptedCount: 1 });
