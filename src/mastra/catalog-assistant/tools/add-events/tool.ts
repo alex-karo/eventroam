@@ -14,7 +14,7 @@ export function createAddEventsTool(
     id: "add_events",
     description:
       "Submit one to 200 complete descriptions for background add. A complete name or alias plus a clear country code or full official URL can skip one saved Event before source reads. Other text supplies search leads; new facts need inspected sources. One selection per execution. Returns batch ID and accepted count. Read progress and reports through query_catalog.",
-    inputSchema: addJobsInputSchema.omit({ dryRun: true }),
+    inputSchema: addJobsInputSchema,
     execute: async (input, context) =>
       submitSelection(
         catalogPath,
@@ -23,11 +23,7 @@ export function createAddEventsTool(
         context,
         { inputCount: input.inputs.length },
         (client, consume) =>
-          submitAddJobs(
-            client,
-            { inputs: input.inputs, dryRun: false },
-            consume,
-          ),
+          submitAddJobs(client, { inputs: input.inputs }, consume),
       ),
   });
 }

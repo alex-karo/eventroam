@@ -18,11 +18,9 @@ export const refreshInputSchema = z.strictObject({
       "Event IDs must be distinct",
     ),
   scope: refreshScopeSchema.default("full"),
-  dryRun: z.boolean().default(true),
 });
 export const addJobsInputSchema = z.strictObject({
   inputs: z.array(addInputSchema).min(1).max(200),
-  dryRun: z.boolean().default(true),
 });
 
 type JobTarget = z.infer<typeof ingestionTargetSchema>;
@@ -117,14 +115,13 @@ export function submitJobs(
   if (!parsed.success) {
     throw new JobStorageError("invalid_selection");
   }
-  const { eventIds, scope, dryRun } = parsed.data;
+  const { eventIds, scope } = parsed.data;
   return submitSelection(
     client,
     eventIds.map((eventId) => ({
       mode: "refresh",
       input: { eventId, scope },
     })),
-    dryRun,
     consume,
   );
 }
@@ -144,7 +141,6 @@ export function submitAddJobs(
       mode: "add",
       input,
     })),
-    parsed.data.dryRun,
     consume,
   );
 }
@@ -152,7 +148,6 @@ export function submitAddJobs(
 function submitSelection(
   client: Database.Database,
   targets: JobTarget[],
-  dryRun: boolean,
   consume: () => void,
 ) {
   return write(client, () => {
@@ -177,7 +172,7 @@ function submitSelection(
         position,
         target.mode,
         JSON.stringify(target.input),
-        Number(dryRun),
+        0,
         createdAt,
       ),
     );

@@ -212,7 +212,7 @@ function initialReply(
     call = {
       name: "query_catalog",
       input: {
-        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
+        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=0 ORDER BY created_at,batch_id`,
         parameters: [ids.length, ...ids, ids.length],
       },
     };

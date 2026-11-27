@@ -27,7 +27,6 @@ test("queued country and URL duplicate skips complete without external work", as
   fx.eventLink(event, { url: "https://example.com/", official: true });
   submitAddJobs(client, {
     inputs: ["Example Fest, us", "Example Fest https://example.com/"],
-    dryRun: false,
   });
   const generateRole = vi.fn();
   const readPage = vi.fn();
@@ -97,7 +96,6 @@ test.each(["before-attempt", "after-finalize"])(
     const event = testFixtures().event();
     submitJobs(client, {
       eventIds: [event.id],
-      dryRun: false,
     });
     const jobId = nextJob(client)!.id;
     const execute = () =>
@@ -177,7 +175,13 @@ test("attempt insertion or association failure prevents all external work", asyn
   const generateRole = vi.fn().mockResolvedValue(failed);
   await expect(
     runFixtureResearch(
-      { mode: "refresh", eventId, scope: "current", actor: "owner" },
+      {
+        mode: "refresh",
+        eventId,
+        scope: "current",
+        actor: "owner",
+        dryRun: false,
+      },
       { client, jobId: job.id, generateRole },
     ),
   ).rejects.toThrow();
@@ -186,7 +190,7 @@ test("attempt insertion or association failure prevents all external work", asyn
   try {
     await expect(
       runFixtureResearch(
-        { mode: "refresh", eventId, actor: "owner" },
+        { mode: "refresh", eventId, actor: "owner", dryRun: false },
         { client, jobId: job.id, generateRole },
       ),
     ).rejects.toThrow();
@@ -198,7 +202,7 @@ test("attempt insertion or association failure prevents all external work", asyn
     client.prepare("SELECT count(*) FROM ingestion_runs").pluck().get(),
   ).toBe(0);
   await runFixtureResearch(
-    { mode: "refresh", eventId, actor: "owner" },
+    { mode: "refresh", eventId, actor: "owner", dryRun: false },
     { client, jobId: job.id, generateRole },
   );
   expect(generateRole).toHaveBeenCalledOnce();
@@ -215,7 +219,6 @@ test("restarted add skips a committed duplicate with two linked attempts and lat
       "Unclear Event",
       "https://other.test/",
     ],
-    dryRun: false,
   });
   const job = nextJob(client)!;
   const run = (selected: typeof job) => {

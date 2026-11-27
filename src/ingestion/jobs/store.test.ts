@@ -28,7 +28,6 @@ test("a complete 200 Event batch has fixed settings, common time, distinct IDs a
   const result = submitJobs(client, {
     eventIds,
     scope: "current",
-    dryRun: false,
   });
   expect(result).toEqual({ batchId: expect.any(String), acceptedCount: 200 });
   const rows = client
@@ -116,7 +115,7 @@ test("cancellation and claiming in either order preserve running and terminal jo
 
 test("attempt insertion checks job state and all fixed inputs and permits several distinct attempts", () => {
   const { client, eventIds } = setup(1);
-  submitJobs(client, { eventIds, scope: "current", dryRun: false });
+  submitJobs(client, { eventIds, scope: "current" });
   const job = client.prepare("SELECT id FROM ingestion_jobs").get() as {
     id: string;
   };
@@ -179,7 +178,7 @@ test("SQL counts 200 jobs once and keeps multiple attempts visible within normal
   const batch = submitJobs(client, { eventIds });
   const job = nextJob(client)!;
   const input = storedRunInput(
-    { mode: "refresh", eventId: eventIds[0], actor: "owner" },
+    { mode: "refresh", eventId: eventIds[0], actor: "owner", dryRun: false },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
     DEFAULT_RESEARCH_LIMITS,
   );
@@ -221,7 +220,7 @@ test("SQL counts 200 jobs once and keeps multiple attempts visible within normal
         job.id,
         0,
         "refresh",
-        1,
+        0,
         "running",
         job.created_at,
         eventIds[0],
@@ -277,7 +276,7 @@ test("add batches preserve full notes and reject the complete invalid selection"
   expect(job).toMatchObject({
     mode: "add",
     input: JSON.stringify(note),
-    dry_run: 1,
+    dry_run: 0,
   });
   const input = jobWorkflowInput(job);
   if (input.mode !== "add") {
@@ -292,7 +291,7 @@ test("add batches preserve full notes and reject the complete invalid selection"
     { input: note.trim() },
     { scope: "full" as const },
     { eventId: "candidate" },
-    { dryRun: false },
+    { dryRun: true },
     { republish: true },
     { mode: "refresh" },
   ]) {
@@ -338,7 +337,7 @@ test("SQL counts and bounded add details work when one note exceeds the result l
   });
   const job = nextJob(client)!;
   const input = storedRunInput(
-    { mode: "add", input: note, actor: "owner" },
+    { mode: "add", input: note, actor: "owner", dryRun: false },
     { apiKey: "fixture", model: "fixture", limits: DEFAULT_RESEARCH_LIMITS },
     DEFAULT_RESEARCH_LIMITS,
   );
@@ -364,7 +363,7 @@ test("SQL counts and bounded add details work when one note exceeds the result l
         job.id,
         0,
         "add",
-        1,
+        0,
         "running",
         job.created_at,
         null,
