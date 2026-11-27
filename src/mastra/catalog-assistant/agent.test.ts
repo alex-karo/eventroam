@@ -8,7 +8,7 @@ import { createChatMemory } from "./memory";
 
 afterEach(() => vi.unstubAllEnvs());
 
-test("agent protocol supports selection, conversation follow-ups, preview, explicit apply and SQL report analysis", async () => {
+test("agent protocol supports selection, conversation follow-ups, explicit apply and SQL report analysis", async () => {
   const db = testDatabase(),
     fixtures = testFixtures();
   const ids = [
@@ -47,7 +47,7 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
     expect(
       db.client.prepare("SELECT count(*) AS n FROM ingestion_jobs").get(),
     ).toEqual({ n: 0 });
-    await ask(`preview ${ids[0]}`);
+    await ask(`update ${ids[0]}`);
     expect(
       db.client
         .prepare(
@@ -55,14 +55,14 @@ test("agent protocol supports selection, conversation follow-ups, preview, expli
         )
         .all(),
     ).toEqual([
-      { mode: "refresh", event_id: ids[0], scope: "full", dry_run: 1 },
+      { mode: "refresh", event_id: ids[0], scope: "full", dry_run: 0 },
     ]);
     const applied = await ask(`update ${ids[0]}`);
     expect(
       db.client
         .prepare("SELECT dry_run FROM ingestion_jobs ORDER BY rowid")
         .all(),
-    ).toEqual([{ dry_run: 1 }, { dry_run: 0 }]);
+    ).toEqual([{ dry_run: 0 }, { dry_run: 0 }]);
     expect(applied.text).toContain("batchId");
     expect(applied.text).toContain("acceptedCount");
     db.client

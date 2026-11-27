@@ -63,7 +63,7 @@ test("assistant logs use both sinks with native execution context", async () => 
     mastra.getLogger().error("PRIVATE_SDK_ERROR", {
       error: new Error("PRIVATE_SDK_EXCEPTION"),
     });
-    await assistant.generate(`preview ${id}`, {
+    await assistant.generate(`update ${id}`, {
       memory: { thread: "owner-chat", resource: "owner" },
     });
     const secret = "PRIVATE_SQL_PARAMETER_AND_RESULT";

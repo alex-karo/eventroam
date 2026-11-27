@@ -212,11 +212,11 @@ function initialReply(
     call = {
       name: "query_catalog",
       input: {
-        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=1 ORDER BY created_at,batch_id`,
+        sql: `SELECT batch_id,created_at,json_extract(input,'$.scope') AS scope,dry_run,count(*) FROM ingestion_jobs WHERE mode='refresh' GROUP BY batch_id HAVING count(*)=? AND sum(json_extract(input,'$.eventId') IN (${ids.map(() => "?").join(",")}))=? AND scope='full' AND dry_run=0 ORDER BY created_at,batch_id`,
         parameters: [ids.length, ...ids, ids.length],
       },
     };
-  } else if (/\b(update|preview)\b/i.test(owner)) {
+  } else if (/\bupdate\b/i.test(owner)) {
     if (!ids.length) {
       text = "Specify the Event IDs to refresh.";
     } else {
@@ -224,7 +224,6 @@ function initialReply(
         name: "refresh_events",
         input: {
           eventIds: ids,
-          dryRun: !/\bupdate\b/i.test(owner),
           scope: "full",
         },
       };
@@ -269,7 +268,6 @@ function selectedEventsReply(value: unknown) {
       input: {
         eventIds: selected.rows.map((row) => row[0]),
         scope: "full",
-        dryRun: false,
       },
     },
   };
@@ -355,7 +353,6 @@ function discoveryReply(
           inputs: result.candidates.map(
             (candidate) => `${candidate.title}\n${candidate.url}`,
           ),
-          dryRun: false,
         },
       };
     } else {
@@ -382,7 +379,6 @@ function fixtureEditReply(owner: string, results: unknown[]) {
         input: {
           eventIds: ["00000000-0000-4000-8000-000000000001"],
           scope: "full",
-          dryRun: !/apply refresh/i.test(owner),
         },
       },
     };

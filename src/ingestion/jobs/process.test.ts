@@ -10,7 +10,7 @@ function fixture(count = 3) {
   const db = testDatabase(),
     fx = testFixtures();
   const eventIds = Array.from({ length: count }, () => fx.event().id);
-  const batch = submitJobs(db.client, { eventIds, dryRun: false });
+  const batch = submitJobs(db.client, { eventIds });
   const root = dirname(db.path);
   const env = {
     ...process.env,

@@ -21,7 +21,7 @@ The owner can inspect catalog data and start research from Studio chat. The owne
 - Save each Event or Edition and its link corrections together. A failure leaves that whole item unchanged, while other items can succeed. Report changed, unchanged, or failed for each item.
 - Record actual changes and owner attribution by default. Omit history only for an explicitly approved direct edit; retain public redirects, validation, and protection against repeated writes. Research keeps its history.
 - Repeating a completed approved request returns its earlier result without applying it again or changing later edits.
-- Keep explicit refresh requests separate from direct edits. Refresh uses the requested selection, full scope by default, and republish off; reads, previews, and analysis authorize no catalog writes.
+- Keep explicit refresh requests separate from direct edits. Refresh uses the requested selection, full scope by default, and republish off; reads and analysis authorize no catalog writes. Ingestion preview is not available in the assistant.
 
 ## Acceptance criteria
 
@@ -31,7 +31,7 @@ The owner can inspect catalog data and start research from Studio chat. The owne
 - An approved field overwrites that field's current value while preserving unrelated concurrent edits and newly added links.
 - A missing link or invalid correction leaves its whole Event or Edition unchanged. Other valid items succeed and report their own results.
 - Repeated approved requests return their earlier result without another change. Normal edits identify the owner and actual old and new values; approved history omission adds no edit-history entry.
-- Read-only questions start no refresh. A current-scope preview uses dry run with republish off; a supplied direct edit opens approval without starting refresh.
+- Read-only questions start no refresh. A preview request starts no ingestion; a supplied direct edit opens approval without starting refresh.
 
 ## Impact
 

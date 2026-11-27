@@ -44,6 +44,12 @@ These records explain past technology choices. Use the code, tests, and current 
 
 ## Known issues
 
+- [Add can publish a different festival from the same promoter](known-issues/2026-11-21-ingestion-add-event-identity.md) — a request for DnB Allstars Mallorca published a London Edition.
+- [Add can fail when Event slugs match](known-issues/2026-11-21-ingestion-add-slug-collision.md) — the Valencia and Barakaldo requests generated the same BIGSOUND slug.
+- [Missing dates in scheduled Editions stop ingestion](known-issues/2026-11-21-ingestion-scheduled-without-dates.md) — the final date check rejected two plans.
+- [Reader output limit stops an add run](known-issues/2026-11-21-ingestion-reader-output-limit.md) — Reader reached its output limit and collection continued after the error.
+- [Ingestion job logs can hide catalog failures](known-issues/2026-11-21-ingestion-job-log-status.md) — the queue logged `failed=false` for four failed attempts.
+- [Source and tool errors during ingestion](known-issues/2026-11-21-ingestion-source-and-tool-errors.md) — failed reads, rejected tool calls, and a Location repair from the production run.
 - [Studio and CLI evals share a DuckDB writer lock](known-issues/2026-10-27-studio-cli-duckdb-conflict.md) — affects standalone evals with logging or tracing enabled.
 - [Invalid Edition key rejects Wacken research](known-issues/2026-10-27-wacken-invalid-edition-key.md) — malformed model output rejects a full research result.
 - [Studio can stall while it reads workflow history](known-issues/2026-11-26-studio-workflow-history-indexes.md) — measured effect of two SQLite indexes and checks for production.

@@ -27,7 +27,7 @@ function setup(n = 3) {
     abortSignal?: AbortSignal,
   ) =>
     tool.execute!(
-      { eventIds: ids, scope: "full", dryRun: true },
+      { eventIds: ids, scope: "full" },
       { requestContext, abortSignal, observe: noopObserve },
     );
   return { db, eventIds, tool, execute };
@@ -131,7 +131,7 @@ test("lost responses with failed logging preserve accepted jobs and do not resub
   } as unknown as Parameters<typeof createRefreshEventsTool>[1];
   const tool = createRefreshEventsTool(() => fixture.db.path, logging);
   await tool.execute!(
-    { eventIds: fixture.eventIds, scope: "full", dryRun: true },
+    { eventIds: fixture.eventIds, scope: "full" },
     { requestContext, observe: noopObserve },
   );
   expect(await fixture.execute(undefined, requestContext)).toMatchObject({
