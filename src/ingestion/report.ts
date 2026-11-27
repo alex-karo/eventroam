@@ -24,7 +24,7 @@ import {
   specialistChecks,
 } from "./roles/assignment";
 import { PROMPT_VERSIONS } from "./roles/versions";
-import { LOCATION_PROMPT_VERSION } from "./roles/location/contracts";
+import { LOCATION_PROMPT_VERSION } from "./roles/location/prompt";
 import type { Targets } from "./roles/general/contracts";
 
 export type ReportRun = {

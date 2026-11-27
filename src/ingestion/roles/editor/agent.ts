@@ -11,9 +11,8 @@ import { assignmentPermissions, refreshScope } from "../assignment";
 import { invokeRole, type RoleExecution } from "../invoke";
 import { roleInvocationOptions, type RoleOptions } from "../options";
 import { replyReferences } from "../proposal-validation";
-import { PROMPT_VERSIONS } from "../versions";
 import type { ReviewOutput, ReviewScope } from "./contracts";
-import { editorInstructions } from "./prompt";
+import { EDITOR_PROMPT_VERSION, getEditorInstructions } from "./prompt";
 import { groupProposal } from "./review";
 import { editorReplySchema, validateEditorReply } from "./validate";
 
@@ -80,12 +79,8 @@ export async function runEditor(
   const { output: reply, ...execution } = await invokeRole({
     ...roleInvocationOptions(options, "editor"),
     role: "editor",
-    version: PROMPT_VERSIONS.editor,
-    instructions:
-      editorInstructions +
-      (targetedGroups
-        ? "\nThis is a targeted review. The proposals are in returnedGroups. Use fixedEditions only as context. Do not review any other group or target."
-        : ""),
+    version: EDITOR_PROMPT_VERSION,
+    instructions: getEditorInstructions(Boolean(targetedGroups)),
     input: {
       currentDate: options.context.currentDate,
       permissions: assignmentPermissions(refreshScope(options.input)),

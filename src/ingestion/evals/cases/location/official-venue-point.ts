@@ -26,7 +26,7 @@ export const locationOfficialVenuePointCase: LocationCaseDefinition = {
     task: "Check location official venue point",
     provenance: {
       kind: "synthetic",
-      note: "Explicit official venue coordinates differ by more than 10 km from the saved target and historical donor. Geocoding returns only a locality. The official point must take priority and the unexplained discrepancy must remain unresolved. All source and provider data are synthetic.",
+      note: "Explicit official venue coordinates differ by more than 10 km from the saved target and historical donor. Use the official point without forward geocoding and leave the unexplained discrepancy unresolved. A forward lookup would return only a locality. All source and provider data are synthetic.",
     },
     input: refreshInput(`event-${caseName}`),
     location: {
@@ -75,7 +75,7 @@ export const locationOfficialVenuePointCase: LocationCaseDefinition = {
     ],
     sources: [],
   },
-  evaluate: ({ edition }) => {
+  evaluate: ({ edition, observations }) => {
     const target = edition("2027");
     return [
       pointChanged(target, {
@@ -85,6 +85,11 @@ export const locationOfficialVenuePointCase: LocationCaseDefinition = {
       }),
       pointAction(target, "select"),
       pointQuestion(target),
+      check(
+        "location.noForwardGeocoding",
+        observations.every(({ request }) => request.direction !== "forward"),
+        "Use the official venue point without a forward lookup",
+      ),
       check(
         "location.previousPoint",
         !target?.coordinatesChanged ||

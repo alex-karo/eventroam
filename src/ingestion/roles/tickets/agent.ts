@@ -2,8 +2,6 @@ import { evidencePacket } from "../../evidence/contracts";
 import { specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import type { Targets } from "../general/contracts";
 import {
   editionChronology,
@@ -14,7 +12,7 @@ import {
   type SpecialistContext,
 } from "../options";
 import { ticketsOutputSchema } from "./contracts";
-import { ticketsInstructions } from "./prompt";
+import { TICKETS_PROMPT_VERSION, ticketsInstructions } from "./prompt";
 
 type TicketsInput = Pick<
   SpecialistContext,
@@ -32,8 +30,8 @@ export function runTickets(
   return invokeRole({
     ...roleInvocationOptions(options, "tickets"),
     role: "tickets",
-    version: PROMPT_VERSIONS.tickets,
-    instructions: ticketsInstructions + returnInstructions,
+    version: TICKETS_PROMPT_VERSION,
+    instructions: ticketsInstructions,
     input: {
       assignedChecks: specialistChecks("tickets", groups),
       currentDate,

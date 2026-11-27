@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
-import { LOCATION_PROMPT_VERSION } from "../../roles/location/contracts";
+import { LOCATION_PROMPT_VERSION } from "../../roles/location/prompt";
 import { PROMPT_VERSIONS } from "../../roles/versions";
 import {
   readTraceRows,

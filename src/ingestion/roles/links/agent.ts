@@ -2,8 +2,6 @@ import { evidencePacket } from "../../evidence/contracts";
 import { assignmentPermissions, specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
 import {
   editionChronology,
@@ -15,7 +13,7 @@ import {
   type TargetContextSelection,
 } from "../options";
 import { linksOutputSchema } from "./contracts";
-import { linksInstructions } from "./prompt";
+import { LINKS_PROMPT_VERSION, linksInstructions } from "./prompt";
 
 type LinksInput = Pick<
   SpecialistContext,
@@ -41,8 +39,8 @@ export function runLinks(
   return invokeRole({
     ...roleInvocationOptions(options, "links"),
     role: "links",
-    version: PROMPT_VERSIONS.links,
-    instructions: linksInstructions + returnInstructions,
+    version: LINKS_PROMPT_VERSION,
+    instructions: linksInstructions,
     input: {
       assignedChecks: specialistChecks("links", groups),
       targets: targetContext(targets, savedEditions, currentDate, (saved) => ({

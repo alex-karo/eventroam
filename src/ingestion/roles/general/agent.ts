@@ -1,8 +1,6 @@
 import { evidencePacket } from "../../evidence/contracts";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import { buildAssignment, generalChecks, refreshScope } from "../assignment";
 import {
   editionChronology,
@@ -10,7 +8,7 @@ import {
   type RoleOptions,
 } from "../options";
 import { generalOutputSchema } from "./contracts";
-import { generalInstructions } from "./prompt";
+import { GENERAL_PROMPT_VERSION, generalInstructions } from "./prompt";
 
 export function runGeneral(options: RoleOptions) {
   const savedEvent = options.context.catalog.at(0);
@@ -19,8 +17,8 @@ export function runGeneral(options: RoleOptions) {
   return invokeRole({
     ...roleInvocationOptions(options, "general"),
     role: "general",
-    version: PROMPT_VERSIONS.general,
-    instructions: generalInstructions + returnInstructions,
+    version: GENERAL_PROMPT_VERSION,
+    instructions: generalInstructions,
     input: {
       assignment: { identityTask, identityContext, currentDate, permissions },
       assignedChecks: generalChecks(refreshScope(options.input)),

@@ -2,9 +2,8 @@ import { bindSelectedEvidence } from "../../evidence/contracts";
 import { segmentPage } from "../../evidence/segments";
 import { invokeRole, type RoleExecution } from "../invoke";
 import { validateSchema } from "../validation";
-import { PROMPT_VERSIONS } from "../versions";
 import { readerSelectionSchema, type ReaderSelectionOutput } from "./contracts";
-import { readerInstructions } from "./prompt";
+import { READER_PROMPT_VERSION, readerInstructions } from "./prompt";
 
 type ReaderOptions = Omit<
   Parameters<typeof invokeRole>[0],
@@ -52,7 +51,7 @@ function skippedReader(
     modelResponse: null,
     errors: [],
     model,
-    promptVersion: PROMPT_VERSIONS.reader,
+    promptVersion: READER_PROMPT_VERSION,
     durationMs: 0,
     skipReason,
     bound: null,
@@ -82,7 +81,7 @@ export async function readSource(options: ReaderOptions) {
     input,
     config: { ...options.config, reasoningEffort: "medium" },
     role: "reader",
-    version: PROMPT_VERSIONS.reader,
+    version: READER_PROMPT_VERSION,
     instructions: readerInstructions,
     cacheInstructions: true,
     schema: readerSelectionSchema,

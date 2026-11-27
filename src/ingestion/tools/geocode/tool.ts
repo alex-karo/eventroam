@@ -138,7 +138,7 @@ export function createGeocodingSession(
   const tool = createTool({
     id: "geocode",
     description:
-      "Refine an unsuitable prepared location result or try a useful alternate spelling. Search only supplied place context. No saved-point proximity bias. Up to three candidates. Each call counts against the shared six-call limit, including cache hits. A match does not confirm a festival venue.",
+      "Find a point for a confirmed venue or town when no usable point is registered for the Edition. Use usable official venue coordinates directly, even if they differ from a saved point. Search only supplied place context or a supported alternate spelling. No saved-point proximity bias. Up to three candidates. Each call counts against the shared six-call limit, including cache hits. A match does not confirm a festival venue.",
     inputSchema: forwardInputSchema,
     outputSchema: z.json(),
     execute: forward,

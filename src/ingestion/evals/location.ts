@@ -30,6 +30,7 @@ function finalCoordinates(
 function locationContext(item: LocationEvalCase, execution: LocationExecution) {
   const output = execution.modelResponse?.object as LocationOutput | undefined;
   return {
+    observations: execution.observations,
     edition: (key: string) => {
       for (const slot of ["previousEdition", "currentOrNextEdition"] as const) {
         const target = item.location.input[slot];

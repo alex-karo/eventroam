@@ -2,8 +2,6 @@ import { evidencePacket } from "../../evidence/contracts";
 import { assignmentPermissions, specialistChecks } from "../assignment";
 import { roleEvidenceTopics } from "../contracts";
 import { invokeRole, type RoleExecution } from "../invoke";
-import { returnInstructions } from "../prompts";
-import { PROMPT_VERSIONS } from "../versions";
 import { z } from "zod";
 import {
   editionChronology,
@@ -18,7 +16,10 @@ import {
   classificationReplySchema,
   type ClassificationOutput,
 } from "./contracts";
-import { classificationInstructions, descriptionInstructions } from "./prompt";
+import {
+  CLASSIFICATION_PROMPT_VERSION,
+  getClassificationInstructions,
+} from "./prompt";
 import {
   classificationVocabulary,
   materializeClassificationReply,
@@ -66,11 +67,8 @@ export async function runClassification(
   const { output: reply, ...execution } = await invokeRole({
     ...roleInvocationOptions(options, "classification"),
     role: "classification",
-    version: PROMPT_VERSIONS.classification,
-    instructions:
-      (describeFestival
-        ? descriptionInstructions + "\n" + classificationInstructions
-        : classificationInstructions) + returnInstructions,
+    version: CLASSIFICATION_PROMPT_VERSION,
+    instructions: getClassificationInstructions(describeFestival),
     input: {
       assignedChecks: specialistChecks("classification", groups),
       targets: targetContext(
